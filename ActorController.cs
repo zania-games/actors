@@ -16,10 +16,18 @@ namespace ProjectZombie
             charController = GetComponent<CharacterController>();
         }
 
+        protected virtual IEnumerator Start()
+        {
+            yield return FallToGround();
+            SetupComplete = true;
+        }
+
         protected void ImplMove(Vector3 direction, float speed)
         {
-            Vector3 offset = speed * Time.deltaTime * transform.TransformDirection(direction);
-            charController.Move(offset + new Vector3(0, -0.001f, 0));
+            Vector3 offset = speed * transform.TransformDirection(direction);
+            if (!charController.isGrounded)
+                offset += DefaultGravityMultiplier * Physics.gravity;
+            charController.Move(Time.deltaTime * offset + new Vector3(0, -0.001f, 0));
         }
 
         protected IEnumerator ImplJump(float speed)
@@ -48,6 +56,7 @@ namespace ProjectZombie
 
         public abstract Actions SupportedActions {get;}
         public abstract Actions CurrentActions {get;}
+        public bool SetupComplete {get; protected set;} = false;
 
         public abstract void OnActionBegin(Actions action);
         public abstract void OnActionEnd(Actions action);
@@ -62,8 +71,8 @@ namespace ProjectZombie
         {
             while (!charController.isGrounded)
             {
-                charController.Move(DefaultGravityMultiplier * Time.fixedDeltaTime * Physics.gravity);
-                yield return new WaitForFixedUpdate();
+                charController.Move(DefaultGravityMultiplier * Time.deltaTime * Physics.gravity);
+                yield return null;
             }
         }
     }
