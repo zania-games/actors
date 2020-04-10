@@ -15,7 +15,7 @@ namespace ProjectZombie
 
         Actions currentActions = Actions.None;
 
-        public override Actions SupportedActions => Actions.Movement;
+        public override Actions SupportedActions => Actions.Movement | Actions.Turn;
         public override Actions CurrentActions => currentActions;
 
         public override void OnActionBegin(Actions action)
