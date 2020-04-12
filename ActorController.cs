@@ -38,7 +38,7 @@ namespace ProjectZombie
             {
                 charController.Move(Time.fixedDeltaTime * velocity);
                 velocity += DefaultGravityMultiplier * Time.fixedDeltaTime * Physics.gravity;
-                yield return new WaitForFixedUpdate();
+                yield return null;
             }
             while (!charController.isGrounded);
             OnActionEnd(Actions.Jump);
