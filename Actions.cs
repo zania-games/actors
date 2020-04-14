@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace ProjectZombie
 {
@@ -13,4 +14,6 @@ namespace ProjectZombie
         Turn = 16,
         Movement = SlowMove | NormalMove | FastMove | Jump
     }
+
+    public delegate void MoveMethod(Vector3 direction);
 }
