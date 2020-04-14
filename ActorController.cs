@@ -75,5 +75,20 @@ namespace ProjectZombie
                 yield return null;
             }
         }
+
+        public MoveMethod GetMoveMethod(Actions moveType)
+        {
+            switch (moveType)
+            {
+                case Actions.SlowMove:
+                    return SlowMove;
+                case Actions.NormalMove:
+                    return NormalMove;
+                case Actions.FastMove:
+                    return FastMove;
+                default:
+                    throw new ArgumentException("Invalid move type.", "moveType");
+            }
+        }
     }
 }
