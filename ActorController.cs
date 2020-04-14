@@ -4,6 +4,8 @@ using UnityEngine;
 
 namespace ProjectZombie
 {
+    public delegate void MoveMethod(Vector3 direction);
+
     [RequireComponent(typeof(CharacterController))]
     public abstract class ActorController: MonoBehaviour
     {
