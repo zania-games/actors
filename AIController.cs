@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,18 +18,18 @@ namespace ProjectZombie
 
         static float PlanarAngle(Vector3 u, Vector3 v)
         {
-            float num = u.x*v.x + u.z*v.z;
-            float denom = Mathf.Sqrt((u.x*u.x + u.z*u.z) * (v.x*v.x + v.z*v.z));
-            return Mathf.Rad2Deg * Mathf.Acos(num / denom);
+            return Mathf.Rad2Deg * Mathf.Atan2(v.x*u.z - u.x*v.z, u.x*v.x + u.z*v.z);
         }
 
-        NavMeshHit hit;
-        NavMeshPath path;
-
-        protected override void Awake()
+        Vector3? FindPointNear(Vector3 v, float distance, float maxError)
         {
-            base.Awake();
-            path = new NavMeshPath();
+            float distanceFromSelf = Vector3.Distance(transform.position, v);
+            Vector3 optimalPoint = Vector3.MoveTowards(transform.position, v, distanceFromSelf - distance);
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(optimalPoint, out hit, maxError, NavMesh.AllAreas))
+                return hit.position;
+            else
+                return null;
         }
 
         IEnumerator BlindMoveTo(Vector3 destination, Actions moveType)
@@ -52,6 +53,37 @@ namespace ProjectZombie
             OnActionEnd(moveType);
         }
 
+        // TODO: Handle situations where a path is found, but invalidated later, such as when another actor gets in the
+        // way. Such situations may prevent the derived coroutine from terminating on its own.
+        IEnumerator ImplMoveTo(Func<Vector3?> targetFinder, Actions moveType, float waypointDistance,
+            float searchRadius)
+        {
+            NavMeshHit hit;
+            NavMeshPath path = new NavMeshPath();
+            Vector3? destination = targetFinder();
+            if (destination == null)
+                yield break;
+            float distance = PlanarDistance(transform.position, (Vector3)destination);
+            for (; distance > waypointDistance; distance = PlanarDistance(transform.position, (Vector3)destination))
+            {
+                Vector3 optimalWaypoint =
+                    Vector3.MoveTowards(transform.position, (Vector3)destination, waypointDistance);
+                if (!NavMesh.SamplePosition(optimalWaypoint, out hit, searchRadius, NavMesh.AllAreas))
+                    yield break;
+                if (!NavMesh.CalculatePath(transform.position, hit.position, NavMesh.AllAreas, path))
+                    yield break;
+                for (int i = 1; i < path.corners.Length; ++i)
+                    yield return BlindMoveTo(path.corners[i], moveType);
+                yield return new WaitForSeconds(SecondsBetweenPathFinds);
+                destination = targetFinder();
+                if (destination == null)
+                    yield break;
+            }
+            NavMesh.CalculatePath(transform.position, (Vector3)destination, NavMesh.AllAreas, path);
+            if (path.status == NavMeshPathStatus.PathComplete)
+                yield return BlindMoveTo((Vector3)destination, moveType);
+        }
+
         protected IEnumerator ImplTurnDegrees(float theta, float speed)
         {
             OnActionBegin(Actions.Turn);
@@ -63,7 +95,7 @@ namespace ProjectZombie
                 Turn(sign);
                 yield return null;
             }
-            Turn(turns - completeTurns);
+            Turn(sign * (turns - completeTurns));
             OnActionEnd(Actions.Turn);
         }
 
@@ -82,25 +114,16 @@ namespace ProjectZombie
             }
         }
 
-        // TODO: Handle situations where a path is found, but invalidated later, such as when another actor gets in the
-        // way. Such situations may prevent the derived coroutine from terminating on its own.
         public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius)
         {
-            float distance = PlanarDistance(transform.position, destination);
-            for (; distance > waypointDistance; distance = PlanarDistance(transform.position, destination))
-            {
-                Vector3 optimalWaypoint = Vector3.MoveTowards(transform.position, destination, waypointDistance);
-                if (!NavMesh.SamplePosition(optimalWaypoint, out hit, searchRadius, NavMesh.AllAreas))
-                    yield break;
-                if (!NavMesh.CalculatePath(transform.position, hit.position, NavMesh.AllAreas, path))
-                    yield break;
-                for (int i = 1; i < path.corners.Length; ++i)
-                    yield return BlindMoveTo(path.corners[i], moveType);
-                yield return new WaitForSeconds(SecondsBetweenPathFinds);
-            }
-            NavMesh.CalculatePath(transform.position, destination, NavMesh.AllAreas, path);
-            if (path.status == NavMeshPathStatus.PathComplete)
-                yield return BlindMoveTo(destination, moveType);
+            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius);
+        }
+
+        public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
+            float distanceFromTarget, float maxError)
+        {
+            Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
+            return ImplMoveTo(f, moveType, waypointDistance, searchRadius);
         }
     }
 }
