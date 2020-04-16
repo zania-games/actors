@@ -18,8 +18,6 @@ namespace ProjectZombie
             charController = GetComponent<CharacterController>();
         }
 
-        void OnActionNotSupported(Actions action) => throw new ArgumentException("Action not supported.", "action");
-
         protected virtual IEnumerator Start()
         {
             yield return FallToGround();
@@ -60,22 +58,22 @@ namespace ProjectZombie
         public virtual void OnActionBegin(Actions action)
         {
             if ((action & SupportedActions) == 0)
-                OnActionNotSupported(action);
+                throw new ArgumentException($"Action `{action}` is not supported.", "action");
             CurrentActions |= action;
         }
 
         public virtual void OnActionEnd(Actions action)
         {
             if ((action & SupportedActions) == 0)
-                OnActionNotSupported(action);
+                throw new ArgumentException($"Action `{action}` is not supported.", "action");
             CurrentActions &= ~action;
         }
 
-        public virtual void SlowMove(Vector3 direction) => throw new NotImplementedException();
-        public virtual void NormalMove(Vector3 direction) => throw new NotImplementedException();
-        public virtual void FastMove(Vector3 direction) => throw new NotImplementedException();
-        public virtual IEnumerator Jump() => throw new NotImplementedException();
-        public virtual void Turn(float angularVelocity) => throw new NotImplementedException();
+        public virtual void SlowMove(Vector3 direction) => throw new NotSupportedException();
+        public virtual void NormalMove(Vector3 direction) => throw new NotSupportedException();
+        public virtual void FastMove(Vector3 direction) => throw new NotSupportedException();
+        public virtual IEnumerator Jump() => throw new NotSupportedException();
+        public virtual void Turn(float angularVelocity) => throw new NotSupportedException();
 
         public virtual IEnumerator FallToGround()
         {
@@ -97,7 +95,7 @@ namespace ProjectZombie
                 case Actions.FastMove:
                     return FastMove;
                 default:
-                    throw new ArgumentException("Invalid move type.", "moveType");
+                    throw new ArgumentException($"`{moveType}` is not a valid move type.", "moveType");
             }
         }
     }
