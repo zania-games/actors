@@ -9,6 +9,7 @@ namespace ProjectZombie
     public abstract class AIController: ActorController
     {
         const float SecondsBetweenPathFinds = 0.01f;
+        const float SecondsBeforeResumeFollow = 0.25f;
 
         static float PlanarDistance(Vector3 u, Vector3 v)
         {
@@ -84,11 +85,13 @@ namespace ProjectZombie
                 yield return BlindMoveTo((Vector3)destination, moveType);
         }
 
-        protected IEnumerator ImplTurnDegrees(float theta, float speed)
+        protected abstract float TurnSpeed {get;}
+
+        public IEnumerator TurnDegrees(float theta)
         {
             OnActionBegin(Actions.Turn);
             float sign = Mathf.Sign(theta);
-            float turns = Mathf.Abs(theta) / speed;
+            float turns = Mathf.Abs(theta) / TurnSpeed;
             int completeTurns = (int)turns;
             for (int i = 0; i < completeTurns; ++i)
             {
@@ -98,8 +101,6 @@ namespace ProjectZombie
             Turn(sign * (turns - completeTurns));
             OnActionEnd(Actions.Turn);
         }
-
-        public abstract IEnumerator TurnDegrees(float theta);
 
         public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween)
         {
@@ -124,6 +125,19 @@ namespace ProjectZombie
         {
             Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
             return ImplMoveTo(f, moveType, waypointDistance, searchRadius);
+        }
+
+        public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
+            float distanceToTarget, float maxError)
+        {
+            Func<bool> predicate =
+                () => PlanarDistance(transform.position, target.position) > distanceToTarget + maxError;
+            while (true)
+            {
+                yield return Approach(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError);
+                yield return new WaitForSeconds(SecondsBeforeResumeFollow);
+                yield return new WaitUntil(predicate);
+            }
         }
     }
 }

@@ -18,6 +18,8 @@ namespace ProjectZombie
             charController = GetComponent<CharacterController>();
         }
 
+        void OnActionNotSupported(Actions action) => throw new ArgumentException("Action not supported.", "action");
+
         protected virtual IEnumerator Start()
         {
             yield return FallToGround();
@@ -51,17 +53,23 @@ namespace ProjectZombie
             transform.Rotate(0, angularVelocity, 0);
         }
 
-        protected void OnActionNotSupported(Actions action)
-        {
-            throw new ArgumentException("Action not supported.", "action");
-        }
-
         public abstract Actions SupportedActions {get;}
-        public abstract Actions CurrentActions {get;}
+        public Actions CurrentActions {get; protected set;} = Actions.None;
         public bool SetupComplete {get; protected set;} = false;
 
-        public abstract void OnActionBegin(Actions action);
-        public abstract void OnActionEnd(Actions action);
+        public virtual void OnActionBegin(Actions action)
+        {
+            if ((action & SupportedActions) == 0)
+                OnActionNotSupported(action);
+            CurrentActions |= action;
+        }
+
+        public virtual void OnActionEnd(Actions action)
+        {
+            if ((action & SupportedActions) == 0)
+                OnActionNotSupported(action);
+            CurrentActions &= ~action;
+        }
 
         public virtual void SlowMove(Vector3 direction) => throw new NotImplementedException();
         public virtual void NormalMove(Vector3 direction) => throw new NotImplementedException();
