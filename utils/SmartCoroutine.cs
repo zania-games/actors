@@ -15,14 +15,14 @@ namespace ProjectZombie
         }
 
         IEnumerator wrapped;
-        Action onSuccess;
         Action onFailure;
+        Action onSuccess;
 
         public SmartCoroutine(IEnumerator coroutine, Action onFailure = null, Action onSuccess = null)
         {
             wrapped = coroutine;
-            this.onSuccess = onSuccess != null ? onSuccess : () => {};
             this.onFailure = onFailure != null ? onFailure : () => {};
+            this.onSuccess = onSuccess != null ? onSuccess : () => {};
         }
 
         public object Current => wrapped.Current;
