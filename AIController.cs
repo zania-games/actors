@@ -22,6 +22,8 @@ namespace ProjectZombie
             return Mathf.Rad2Deg * Mathf.Atan2(v.x*u.z - u.x*v.z, u.x*v.x + u.z*v.z);
         }
 
+        static bool DefaultFailCondition() => false;
+
         Vector3? FindPointNear(Vector3 v, float distance, float maxError)
         {
             float distanceFromSelf = Vector3.Distance(transform.position, v);
@@ -45,6 +47,8 @@ namespace ProjectZombie
             {
                 mover(Vector3.forward);
                 yield return null;
+                if (!IsMoving)
+                    yield return SmartCoroutine.FailFlag;
                 float distanceAfter = PlanarDistance(transform.position, destination);
                 if (distanceAfter >= distanceBefore)
                     break;
@@ -54,38 +58,41 @@ namespace ProjectZombie
             OnActionEnd(moveType);
         }
 
-        // TODO: Handle situations where a path is found, but invalidated later, such as when another actor gets in the
-        // way. Such situations may prevent the derived coroutine from terminating on its own.
         IEnumerator ImplMoveTo(Func<Vector3?> targetFinder, Actions moveType, float waypointDistance,
-            float searchRadius)
+            float searchRadius, Func<bool> failCondition)
         {
             NavMeshHit hit;
             NavMeshPath path = new NavMeshPath();
             Vector3? destination = targetFinder();
             if (destination == null)
-                yield break;
+                yield return SmartCoroutine.FailFlag;
             float distance = PlanarDistance(transform.position, (Vector3)destination);
             for (; distance > waypointDistance; distance = PlanarDistance(transform.position, (Vector3)destination))
             {
+                if (failCondition())
+                    yield return SmartCoroutine.FailFlag;
                 Vector3 optimalWaypoint =
                     Vector3.MoveTowards(transform.position, (Vector3)destination, waypointDistance);
                 if (!NavMesh.SamplePosition(optimalWaypoint, out hit, searchRadius, NavMesh.AllAreas))
-                    yield break;
+                    yield return SmartCoroutine.FailFlag;
                 if (!NavMesh.CalculatePath(transform.position, hit.position, NavMesh.AllAreas, path))
-                    yield break;
+                    yield return SmartCoroutine.FailFlag;
                 for (int i = 1; i < path.corners.Length; ++i)
                     yield return BlindMoveTo(path.corners[i], moveType);
                 yield return new WaitForSeconds(SecondsBetweenPathFinds);
                 destination = targetFinder();
                 if (destination == null)
-                    yield break;
+                    yield return SmartCoroutine.FailFlag;
             }
             NavMesh.CalculatePath(transform.position, (Vector3)destination, NavMesh.AllAreas, path);
-            if (path.status == NavMeshPathStatus.PathComplete)
+            if (path.status == NavMeshPathStatus.PathComplete && !failCondition())
                 yield return BlindMoveTo((Vector3)destination, moveType);
+            else
+                yield return SmartCoroutine.FailFlag;
         }
 
         protected abstract float TurnSpeed {get;}
+        public bool IsMoving => charController.velocity.sqrMagnitude >= Mathf.Epsilon;
 
         public IEnumerator TurnDegrees(float theta)
         {
@@ -115,29 +122,50 @@ namespace ProjectZombie
             }
         }
 
+        public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius,
+            Func<bool> failCondition)
+        {
+            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius, failCondition);
+        }
+
         public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius)
         {
-            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius);
+            return MoveTo(destination, moveType, waypointDistance, searchRadius, DefaultFailCondition);
+        }
+
+        public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
+            float distanceFromTarget, float maxError, Func<bool> failCondition)
+        {
+            Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
+            return ImplMoveTo(f, moveType, waypointDistance, searchRadius, failCondition);
         }
 
         public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
             float distanceFromTarget, float maxError)
         {
-            Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
-            return ImplMoveTo(f, moveType, waypointDistance, searchRadius);
+            return Approach(target, moveType, waypointDistance, searchRadius, distanceFromTarget, maxError,
+                DefaultFailCondition);
         }
 
         public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceToTarget, float maxError)
+            float distanceToTarget, float maxError, Func<bool> failCondition)
         {
             Func<bool> predicate =
                 () => PlanarDistance(transform.position, target.position) > distanceToTarget + maxError;
-            while (true)
+            while (!failCondition())
             {
                 yield return Approach(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError);
                 yield return new WaitForSeconds(SecondsBeforeResumeFollow);
                 yield return new WaitUntil(predicate);
             }
+            yield return SmartCoroutine.FailFlag;
+        }
+
+        public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
+            float distanceToTarget, float maxError)
+        {
+            return Follow(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError,
+                DefaultFailCondition);
         }
     }
 }
