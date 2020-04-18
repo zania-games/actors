@@ -22,7 +22,7 @@ namespace ProjectZombie
             return Mathf.Rad2Deg * Mathf.Atan2(v.x*u.z - u.x*v.z, u.x*v.x + u.z*v.z);
         }
 
-        static bool DefaultFailCondition() => false;
+        static bool DefaultExitCondition() => false;
 
         Vector3? FindPointNear(Vector3 v, float distance, float maxError)
         {
@@ -35,6 +35,7 @@ namespace ProjectZombie
                 return null;
         }
 
+        [SmartCoroutineEnabled]
         IEnumerator BlindMoveTo(Vector3 destination, Actions moveType)
         {
             MoveMethod mover = GetMoveMethod(moveType);
@@ -48,7 +49,7 @@ namespace ProjectZombie
                 mover(Vector3.forward);
                 yield return null;
                 if (!IsMoving)
-                    yield return SmartCoroutine.FailFlag;
+                    yield return SmartCoroutine.Exit;
                 float distanceAfter = PlanarDistance(transform.position, destination);
                 if (distanceAfter >= distanceBefore)
                     break;
@@ -58,37 +59,38 @@ namespace ProjectZombie
             OnActionEnd(moveType);
         }
 
+        [SmartCoroutineEnabled]
         IEnumerator ImplMoveTo(Func<Vector3?> targetFinder, Actions moveType, float waypointDistance,
-            float searchRadius, Func<bool> failCondition)
+            float searchRadius, Func<bool> exitCondition)
         {
             NavMeshHit hit;
             NavMeshPath path = new NavMeshPath();
             Vector3? destination = targetFinder();
             if (destination == null)
-                yield return SmartCoroutine.FailFlag;
+                yield return SmartCoroutine.Exit;
             float distance = PlanarDistance(transform.position, (Vector3)destination);
             for (; distance > waypointDistance; distance = PlanarDistance(transform.position, (Vector3)destination))
             {
-                if (failCondition())
-                    yield return SmartCoroutine.FailFlag;
+                if (exitCondition())
+                    yield return SmartCoroutine.Exit;
                 Vector3 optimalWaypoint =
                     Vector3.MoveTowards(transform.position, (Vector3)destination, waypointDistance);
                 if (!NavMesh.SamplePosition(optimalWaypoint, out hit, searchRadius, NavMesh.AllAreas))
-                    yield return SmartCoroutine.FailFlag;
+                    yield return SmartCoroutine.Exit;
                 if (!NavMesh.CalculatePath(transform.position, hit.position, NavMesh.AllAreas, path))
-                    yield return SmartCoroutine.FailFlag;
+                    yield return SmartCoroutine.Exit;
                 for (int i = 1; i < path.corners.Length; ++i)
                     yield return BlindMoveTo(path.corners[i], moveType);
                 yield return new WaitForSeconds(SecondsBetweenPathFinds);
                 destination = targetFinder();
                 if (destination == null)
-                    yield return SmartCoroutine.FailFlag;
+                    yield return SmartCoroutine.Exit;
             }
             NavMesh.CalculatePath(transform.position, (Vector3)destination, NavMesh.AllAreas, path);
-            if (path.status == NavMeshPathStatus.PathComplete && !failCondition())
+            if (path.status == NavMeshPathStatus.PathComplete && !exitCondition())
                 yield return BlindMoveTo((Vector3)destination, moveType);
             else
-                yield return SmartCoroutine.FailFlag;
+                yield return SmartCoroutine.Exit;
         }
 
         protected abstract float TurnSpeed {get;}
@@ -109,63 +111,74 @@ namespace ProjectZombie
             OnActionEnd(Actions.Turn);
         }
 
-        public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween)
+        public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween, Func<bool> exitCondition)
         {
             IEnumerator<float> iter = steps.GetEnumerator();
-            if (!iter.MoveNext())
+            if (exitCondition() || !iter.MoveNext())
                 yield break;
             yield return TurnDegrees(iter.Current);
-            while (iter.MoveNext())
+            while (!exitCondition() && iter.MoveNext())
             {
                 yield return new WaitForSeconds(delayBetween);
                 yield return TurnDegrees(iter.Current);
             }
         }
 
-        public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius,
-            Func<bool> failCondition)
+        public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween)
         {
-            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius, failCondition);
+            return TurnInPlace(steps, delayBetween, DefaultExitCondition);
         }
 
+        [SmartCoroutineEnabled]
+        public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius,
+            Func<bool> exitCondition)
+        {
+            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius, exitCondition);
+        }
+
+        [SmartCoroutineEnabled]
         public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius)
         {
-            return MoveTo(destination, moveType, waypointDistance, searchRadius, DefaultFailCondition);
+            return MoveTo(destination, moveType, waypointDistance, searchRadius, DefaultExitCondition);
         }
 
+        [SmartCoroutineEnabled]
         public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceFromTarget, float maxError, Func<bool> failCondition)
+            float distanceFromTarget, float maxError, Func<bool> exitCondition)
         {
             Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
-            return ImplMoveTo(f, moveType, waypointDistance, searchRadius, failCondition);
+            return ImplMoveTo(f, moveType, waypointDistance, searchRadius, exitCondition);
         }
 
+        [SmartCoroutineEnabled]
         public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
             float distanceFromTarget, float maxError)
         {
             return Approach(target, moveType, waypointDistance, searchRadius, distanceFromTarget, maxError,
-                DefaultFailCondition);
+                DefaultExitCondition);
         }
 
+        [SmartCoroutineEnabled]
         public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceToTarget, float maxError, Func<bool> failCondition)
+            float distanceToTarget, float maxError, Func<bool> exitCondition)
         {
             Func<bool> predicate =
                 () => PlanarDistance(transform.position, target.position) > distanceToTarget + maxError;
-            while (!failCondition())
+            while (!exitCondition())
             {
                 yield return Approach(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError);
                 yield return new WaitForSeconds(SecondsBeforeResumeFollow);
                 yield return new WaitUntil(predicate);
             }
-            yield return SmartCoroutine.FailFlag;
+            yield return SmartCoroutine.Exit;
         }
 
+        [SmartCoroutineEnabled]
         public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
             float distanceToTarget, float maxError)
         {
             return Follow(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError,
-                DefaultFailCondition);
+                DefaultExitCondition);
         }
     }
 }

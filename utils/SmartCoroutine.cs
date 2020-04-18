@@ -5,40 +5,40 @@ namespace ProjectZombie
 {
     public class SmartCoroutine: IEnumerator
     {
-        public static readonly object FailFlag = new object();
+        public static readonly object Exit = new object();
 
         public enum Result
         {
-            NotComplete,
-            Success,
-            Failure
+            Pending,
+            Complete,
+            WasExited
         }
 
         IEnumerator wrapped;
-        Action onFailure;
-        Action onSuccess;
+        Action onExit;
+        Action onComplete;
 
-        public SmartCoroutine(IEnumerator coroutine, Action onFailure = null, Action onSuccess = null)
+        public SmartCoroutine(IEnumerator coroutine, Action onExit = null, Action onComplete = null)
         {
             wrapped = coroutine;
-            this.onFailure = onFailure != null ? onFailure : () => {};
-            this.onSuccess = onSuccess != null ? onSuccess : () => {};
+            this.onExit = onExit != null ? onExit : () => {};
+            this.onComplete = onComplete != null ? onComplete : () => {};
         }
 
         public object Current => wrapped.Current;
-        public Result Status {get; private set;} = Result.NotComplete;
-        public bool IsComplete => Status != Result.NotComplete;
-        public Action OnSuccess => onSuccess;
-        public Action OnFailure => onFailure;
+        public Result Status {get; private set;} = Result.Pending;
+        public bool IsFinished => Status != Result.Pending;
+        public Action OnComplete => onComplete;
+        public Action OnExit => onExit;
 
         public bool MoveNext()
         {
             if (wrapped.MoveNext())
             {
-                if (wrapped.Current == FailFlag)
+                if (wrapped.Current == Exit)
                 {
-                    Status = Result.Failure;
-                    onFailure();
+                    Status = Result.WasExited;
+                    onExit();
                     return false;
                 }
                 else
@@ -46,12 +46,15 @@ namespace ProjectZombie
             }
             else
             {
-                Status = Result.Success;
-                onSuccess();
+                Status = Result.Complete;
+                onComplete();
                 return false;
             }
         }
 
         public void Reset() => wrapped.Reset();
     }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class SmartCoroutineEnabledAttribute: Attribute {}
 }
