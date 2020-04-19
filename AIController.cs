@@ -10,6 +10,8 @@ namespace ProjectZombie
     {
         const float SecondsBetweenPathFinds = 0.01f;
         const float SecondsBeforeResumeFollow = 0.25f;
+        const float DefaultDistanceFromTarget = 0;
+        const float DefaultMaxError = 2;
 
         static float PlanarDistance(Vector3 u, Vector3 v)
         {
@@ -144,41 +146,35 @@ namespace ProjectZombie
 
         [SmartCoroutineEnabled]
         public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceFromTarget, float maxError, Func<bool> exitCondition)
+            float distanceFromTarget = DefaultDistanceFromTarget, float maxError = DefaultMaxError,
+            Func<bool> exitCondition = null)
         {
+            if (exitCondition == null)
+                exitCondition = DefaultExitCondition;
             Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
             return ImplMoveTo(f, moveType, waypointDistance, searchRadius, exitCondition);
         }
 
         [SmartCoroutineEnabled]
-        public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceFromTarget, float maxError)
-        {
-            return Approach(target, moveType, waypointDistance, searchRadius, distanceFromTarget, maxError,
-                DefaultExitCondition);
-        }
-
-        [SmartCoroutineEnabled]
         public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceToTarget, float maxError, Func<bool> exitCondition)
+            float distanceFromTarget = DefaultDistanceFromTarget, float maxError = DefaultMaxError,
+            Func<bool> exitCondition = null, Action onReach = null)
         {
+            if (exitCondition == null)
+                exitCondition = DefaultExitCondition;
+            if (onReach == null)
+                onReach = () => {};
             Func<bool> predicate =
-                () => PlanarDistance(transform.position, target.position) > distanceToTarget + maxError;
+                () => PlanarDistance(transform.position, target.position) > distanceFromTarget + maxError;
             while (!exitCondition())
             {
-                yield return Approach(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError);
+                IEnumerator approacher = Approach(target, moveType, waypointDistance, searchRadius, distanceFromTarget,
+                    maxError);
+                yield return new SmartCoroutine(approacher, onCompletion: onReach);
                 yield return new WaitForSeconds(SecondsBeforeResumeFollow);
                 yield return new WaitUntil(predicate);
             }
             yield return SmartCoroutine.Exit;
-        }
-
-        [SmartCoroutineEnabled]
-        public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
-            float distanceToTarget, float maxError)
-        {
-            return Follow(target, moveType, waypointDistance, searchRadius, distanceToTarget, maxError,
-                DefaultExitCondition);
         }
     }
 }
