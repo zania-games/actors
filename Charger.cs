@@ -23,7 +23,6 @@ namespace ProjectZombie
         #pragma warning restore 0649
 
         ChargerController controller;
-        GameObject players;
         Stopwatch stopwatch;
         Transform target = null;
         SmartCoroutine chargeRoutine = null;
@@ -32,7 +31,6 @@ namespace ProjectZombie
         void Awake()
         {
             controller = GetComponent<ChargerController>();
-            players = GameObject.FindWithTag("PlayerContainer");
             stopwatch = GameObject.FindWithTag("Globals").GetComponent<Stopwatch>();
         }
 
@@ -40,10 +38,9 @@ namespace ProjectZombie
         {
             Transform[] visiblePlayers =
             (
-                from player in players.GetComponentsInChildren<Player>()
-                select player.gameObject.transform into tform
-                where IsVisible(tform, visibleDistance, maxVisibleAngle)
-                select tform
+                from player in GameObject.FindGameObjectsWithTag("Player")
+                where IsVisible(player.transform, visibleDistance, maxVisibleAngle)
+                select player.transform
             ).ToArray();
             if (visiblePlayers.Length == 0)
                 return false;
