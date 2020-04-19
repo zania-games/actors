@@ -16,19 +16,19 @@ namespace ProjectZombie
 
         IEnumerator wrapped;
         Action onExit;
-        Action onComplete;
+        Action onCompletion;
 
-        public SmartCoroutine(IEnumerator coroutine, Action onExit = null, Action onComplete = null)
+        public SmartCoroutine(IEnumerator coroutine, Action onExit = null, Action onCompletion = null)
         {
             wrapped = coroutine;
             this.onExit = onExit != null ? onExit : () => {};
-            this.onComplete = onComplete != null ? onComplete : () => {};
+            this.onCompletion = onCompletion != null ? onCompletion : () => {};
         }
 
         public object Current => wrapped.Current;
         public Result Status {get; private set;} = Result.Pending;
         public bool IsFinished => Status != Result.Pending;
-        public Action OnComplete => onComplete;
+        public Action OnCompletion => onCompletion;
         public Action OnExit => onExit;
 
         public bool MoveNext()
@@ -47,7 +47,7 @@ namespace ProjectZombie
             else
             {
                 Status = Result.Complete;
-                onComplete();
+                onCompletion();
                 return false;
             }
         }
