@@ -27,6 +27,7 @@ namespace ProjectZombie
             get => timeOfLastAttack == null || stopwatch.ElapsedSeconds - timeOfLastAttack >= secondsBetweenAttacks;
         }
 
+        [SmartCoroutineEnabled]
         public IEnumerator Attack()
         {
             if (!CanAttack)
