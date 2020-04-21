@@ -51,6 +51,14 @@ namespace ProjectZombie
             transform.Rotate(0, angularVelocity, 0);
         }
 
+        [SmartCoroutineEnabled]
+        protected IEnumerator ImplAttack(IWeapon weapon)
+        {
+            OnActionBegin(Actions.Attack);
+            yield return weapon.Attack();
+            OnActionEnd(Actions.Attack);
+        }
+
         public abstract Actions SupportedActions {get;}
         public Actions CurrentActions {get; protected set;} = Actions.None;
         public bool SetupComplete {get; protected set;} = false;
@@ -74,6 +82,9 @@ namespace ProjectZombie
         public virtual void FastMove(Vector3 direction) => throw new NotSupportedException();
         public virtual IEnumerator Jump() => throw new NotSupportedException();
         public virtual void Turn(float angularVelocity) => throw new NotSupportedException();
+
+        [SmartCoroutineEnabled]
+        public virtual IEnumerator Attack(IWeapon weapon) => throw new NotSupportedException();
 
         public virtual IEnumerator FallToGround()
         {

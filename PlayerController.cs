@@ -13,12 +13,13 @@ namespace ProjectZombie
         [SerializeField] float turnSpeed;
         #pragma warning restore 0649
 
-        public override Actions SupportedActions => Actions.Movement | Actions.Turn;
+        public override Actions SupportedActions => Actions.Movement | Actions.Turn | Actions.Attack;
 
         public override void SlowMove(Vector3 direction) => ImplMove(direction, slowSpeed);
         public override void NormalMove(Vector3 direction) => ImplMove(direction, normalSpeed);
         public override void FastMove(Vector3 direction) => ImplMove(direction, fastSpeed);
         public override IEnumerator Jump() => ImplJump(jumpSpeed);
         public override void Turn(float angularVelocity) => ImplTurn(turnSpeed * angularVelocity);
+        public override IEnumerator Attack(IWeapon weapon) => SmartCoroutine.Create(ImplAttack(weapon));
     }
 }

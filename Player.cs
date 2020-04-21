@@ -6,10 +6,12 @@ namespace ProjectZombie
     public class Player: Actor
     {
         PlayerController controller;
+        IWeapon equippedWeapon;
 
         void Awake()
         {
             controller = GetComponent<PlayerController>();
+            equippedWeapon = GetComponent<Fists>();
         }
 
         void Update()
@@ -32,6 +34,9 @@ namespace ProjectZombie
                         controller.NormalMove(direction);
                 }
             }
+            if ((controller.CurrentActions & Actions.Attack) == 0 && equippedWeapon.CanAttack &&
+                Input.GetButtonDown("Fire1"))
+                StartCoroutine(controller.Attack(equippedWeapon));
             controller.Turn(Input.GetAxis("Mouse X"));
         }
     }

@@ -12,6 +12,7 @@ namespace ProjectZombie
         FastMove = 4,
         Jump = 8,
         Turn = 16,
+        Attack,
         Movement = SlowMove | NormalMove | FastMove | Jump
     }
 }
