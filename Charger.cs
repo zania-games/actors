@@ -86,7 +86,7 @@ namespace ProjectZombie
                 StartCoroutine(IdleRoutine());
             else if (target != null && chargeRoutine == null)
             {
-                chargeRoutine = new SmartCoroutine(ChargeRoutine());
+                chargeRoutine = SmartCoroutine.Create(ChargeRoutine());
                 StartCoroutine(chargeRoutine);
             }
         }

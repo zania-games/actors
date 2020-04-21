@@ -170,7 +170,7 @@ namespace ProjectZombie
             {
                 IEnumerator approacher = Approach(target, moveType, waypointDistance, searchRadius, distanceFromTarget,
                     maxError);
-                yield return new SmartCoroutine(approacher, onCompletion: onReach);
+                yield return SmartCoroutine.Create(approacher, onCompletion: onReach);
                 yield return new WaitForSeconds(SecondsBeforeResumeFollow);
                 yield return new WaitUntil(predicate);
             }

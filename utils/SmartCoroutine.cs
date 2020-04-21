@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace ProjectZombie
 {
@@ -14,22 +15,37 @@ namespace ProjectZombie
             WasExited
         }
 
-        IEnumerator wrapped;
-        Action onExit;
-        Action onCompletion;
+        public static SmartCoroutine Create(IEnumerator coroutine, Action onExit = null, Action onCompletion = null)
+        {
+            SmartCoroutine smartCoroutine = coroutine as SmartCoroutine;
+            if (smartCoroutine == null)
+                return new SmartCoroutine(coroutine, onExit, onCompletion);
+            else
+            {
+                if (onExit != null)
+                    smartCoroutine.exitCallbacks.Add(onExit);
+                if (onCompletion != null)
+                    smartCoroutine.completionCallbacks.Add(onCompletion);
+                return smartCoroutine;
+            }
+        }
 
-        public SmartCoroutine(IEnumerator coroutine, Action onExit = null, Action onCompletion = null)
+        IEnumerator wrapped;
+        IList<Action> exitCallbacks = new List<Action>();
+        IList<Action> completionCallbacks = new List<Action>();
+
+        SmartCoroutine(IEnumerator coroutine, Action onExit, Action onCompletion)
         {
             wrapped = coroutine;
-            this.onExit = onExit != null ? onExit : () => {};
-            this.onCompletion = onCompletion != null ? onCompletion : () => {};
+            if (onExit != null)
+                exitCallbacks.Add(onExit);
+            if (onCompletion != null)
+                completionCallbacks.Add(onCompletion);
         }
 
         public object Current => wrapped.Current;
         public Result Status {get; private set;} = Result.Pending;
         public bool IsFinished => Status != Result.Pending;
-        public Action OnCompletion => onCompletion;
-        public Action OnExit => onExit;
 
         public bool MoveNext()
         {
@@ -38,7 +54,8 @@ namespace ProjectZombie
                 if (wrapped.Current == Exit)
                 {
                     Status = Result.WasExited;
-                    onExit();
+                    foreach (Action cb in exitCallbacks)
+                        cb();
                     return false;
                 }
                 else
@@ -47,7 +64,8 @@ namespace ProjectZombie
             else
             {
                 Status = Result.Complete;
-                onCompletion();
+                foreach (Action cb in completionCallbacks)
+                    cb();
                 return false;
             }
         }
