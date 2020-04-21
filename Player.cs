@@ -11,7 +11,7 @@ namespace ProjectZombie
         void Awake()
         {
             controller = GetComponent<PlayerController>();
-            equippedWeapon = GetComponent<Fists>();
+            equippedWeapon = GetComponent<MeleeWeapon>();
         }
 
         void Update()

@@ -3,17 +3,17 @@ using UnityEngine;
 
 namespace ProjectZombie
 {
-    public class Fists: MonoBehaviour, IWeapon
+    public class MeleeWeapon: MonoBehaviour, IWeapon
     {
         #pragma warning disable 0649
         [SerializeField] int attackDamage;
         [SerializeField] float maxAttackDistance;
-        [SerializeField] float secondsBetweenPunches;
+        [SerializeField] float secondsBetweenAttacks;
         #pragma warning restore 0649
 
         RaycastHit hitInfo;
         Stopwatch stopwatch;
-        float? timeOfLastPunch = null;
+        float? timeOfLastAttack = null;
 
         void Awake()
         {
@@ -24,7 +24,7 @@ namespace ProjectZombie
 
         public bool CanAttack
         {
-            get => timeOfLastPunch == null || stopwatch.ElapsedSeconds - timeOfLastPunch >= secondsBetweenPunches;
+            get => timeOfLastAttack == null || stopwatch.ElapsedSeconds - timeOfLastAttack >= secondsBetweenAttacks;
         }
 
         public IEnumerator Attack()
@@ -38,7 +38,7 @@ namespace ProjectZombie
                 if (target != null)
                     target.OnAttacked(this);
             }
-            timeOfLastPunch = stopwatch.ElapsedSeconds;
+            timeOfLastAttack = stopwatch.ElapsedSeconds;
             yield break;
         }
     }
