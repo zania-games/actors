@@ -9,6 +9,7 @@ using Random = UnityEngine.Random;
 namespace ProjectZombie
 {
     [RequireComponent(typeof(ChargerController))]
+    [RequireComponent(typeof(MeleeWeapon))]
     public class Charger: AIActor
     {
         #pragma warning disable 0649
@@ -24,14 +25,16 @@ namespace ProjectZombie
 
         ChargerController controller;
         Stopwatch stopwatch;
+        IWeapon weapon;
         Transform target = null;
-        SmartCoroutine chargeRoutine = null;
         bool idle = false;
+        bool charging = false;
 
         void Awake()
         {
             controller = GetComponent<ChargerController>();
             stopwatch = GameObject.FindWithTag("Globals").GetComponent<Stopwatch>();
+            weapon = GetComponent<MeleeWeapon>();
         }
 
         bool SelectVisibleTarget()
@@ -67,27 +70,45 @@ namespace ProjectZombie
             yield return controller.TurnInPlace(TurnGenerator(), secondsBetweenTurns, SelectVisibleTarget);
         }
 
-        [SmartCoroutineEnabled]
+        IEnumerator AttackRoutine()
+        {
+            bool attackFailed = false;
+            do
+            {
+                if (weapon.CanAttack)
+                {
+                    SmartCoroutine attack = SmartCoroutine.Create(controller.Attack(weapon));
+                    yield return attack;
+                    if (attack.Status == SmartCoroutine.Result.WasExited)
+                        attackFailed = true;
+                }
+                else
+                    yield return null;
+            }
+            while (!attackFailed);
+        }
+
         IEnumerator ChargeRoutine()
         {
             idle = false;
             float startTime = stopwatch.ElapsedSeconds;
             yield return controller.Follow(target, Actions.NormalMove, waypointDistance, searchRadius,
-                exitCondition: () => stopwatch.ElapsedSeconds - startTime > maxSecondsPerCharge);
+                breakCondition: () => stopwatch.ElapsedSeconds - startTime > maxSecondsPerCharge,
+                onReach: () => StartCoroutine(AttackRoutine()));
             target = null;
-            chargeRoutine = null;
+            charging = false;
         }
 
         void Update()
         {
-            if (!controller.SetupComplete)
+            if (!controller.SetupComplete || (controller.CurrentActions & Actions.Attack) != 0)
                 return;
             if (!idle && target == null)
                 StartCoroutine(IdleRoutine());
-            else if (target != null && chargeRoutine == null)
+            else if (target != null && !charging)
             {
-                chargeRoutine = SmartCoroutine.Create(ChargeRoutine());
-                StartCoroutine(chargeRoutine);
+                charging = true;
+                StartCoroutine(ChargeRoutine());
             }
         }
     }

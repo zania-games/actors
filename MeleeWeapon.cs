@@ -30,14 +30,18 @@ namespace ProjectZombie
         public IEnumerator Attack()
         {
             if (!CanAttack)
-                yield break;
+                yield return SmartCoroutine.Exit;
             // Unity won't let me use a labelled optional argument here!
             if (Physics.Raycast(transform.position, transform.forward, out hitInfo, maxAttackDistance))
             {
                 Actor target = hitInfo.collider.gameObject.GetComponent<Actor>();
                 if (target != null)
                     target.OnAttacked(this);
+                else
+                    yield return SmartCoroutine.Exit;
             }
+            else
+                yield return SmartCoroutine.Exit;
             timeOfLastAttack = stopwatch.ElapsedSeconds;
             yield break;
         }

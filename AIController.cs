@@ -24,7 +24,7 @@ namespace ProjectZombie
             return Mathf.Rad2Deg * Mathf.Atan2(v.x*u.z - u.x*v.z, u.x*v.x + u.z*v.z);
         }
 
-        static bool DefaultExitCondition() => false;
+        static bool DefaultBreakCondition() => false;
 
         Vector3? FindPointNear(Vector3 v, float distance, float maxError)
         {
@@ -63,7 +63,7 @@ namespace ProjectZombie
 
         [SmartCoroutineEnabled]
         IEnumerator ImplMoveTo(Func<Vector3?> targetFinder, Actions moveType, float waypointDistance,
-            float searchRadius, Func<bool> exitCondition)
+            float searchRadius, Func<bool> breakCondition)
         {
             NavMeshHit hit;
             NavMeshPath path = new NavMeshPath();
@@ -73,8 +73,8 @@ namespace ProjectZombie
             float distance = PlanarDistance(transform.position, (Vector3)destination);
             for (; distance > waypointDistance; distance = PlanarDistance(transform.position, (Vector3)destination))
             {
-                if (exitCondition())
-                    yield return SmartCoroutine.Exit;
+                if (breakCondition())
+                    yield break;
                 Vector3 optimalWaypoint =
                     Vector3.MoveTowards(transform.position, (Vector3)destination, waypointDistance);
                 if (!NavMesh.SamplePosition(optimalWaypoint, out hit, searchRadius, NavMesh.AllAreas))
@@ -89,7 +89,9 @@ namespace ProjectZombie
                     yield return SmartCoroutine.Exit;
             }
             NavMesh.CalculatePath(transform.position, (Vector3)destination, NavMesh.AllAreas, path);
-            if (path.status == NavMeshPathStatus.PathComplete && !exitCondition())
+            if (breakCondition())
+                yield break;
+            else if (path.status == NavMeshPathStatus.PathComplete)
                 yield return BlindMoveTo((Vector3)destination, moveType);
             else
                 yield return SmartCoroutine.Exit;
@@ -113,13 +115,13 @@ namespace ProjectZombie
             OnActionEnd(Actions.Turn);
         }
 
-        public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween, Func<bool> exitCondition)
+        public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween, Func<bool> breakCondition)
         {
             IEnumerator<float> iter = steps.GetEnumerator();
-            if (exitCondition() || !iter.MoveNext())
+            if (breakCondition() || !iter.MoveNext())
                 yield break;
             yield return TurnDegrees(iter.Current);
-            while (!exitCondition() && iter.MoveNext())
+            while (!breakCondition() && iter.MoveNext())
             {
                 yield return new WaitForSeconds(delayBetween);
                 yield return TurnDegrees(iter.Current);
@@ -128,45 +130,44 @@ namespace ProjectZombie
 
         public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween)
         {
-            return TurnInPlace(steps, delayBetween, DefaultExitCondition);
+            return TurnInPlace(steps, delayBetween, DefaultBreakCondition);
         }
 
         [SmartCoroutineEnabled]
         public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius,
-            Func<bool> exitCondition)
+            Func<bool> breakCondition)
         {
-            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius, exitCondition);
+            return ImplMoveTo(() => destination, moveType, waypointDistance, searchRadius, breakCondition);
         }
 
         [SmartCoroutineEnabled]
         public IEnumerator MoveTo(Vector3 destination, Actions moveType, float waypointDistance, float searchRadius)
         {
-            return MoveTo(destination, moveType, waypointDistance, searchRadius, DefaultExitCondition);
+            return MoveTo(destination, moveType, waypointDistance, searchRadius, DefaultBreakCondition);
         }
 
         [SmartCoroutineEnabled]
         public IEnumerator Approach(Transform target, Actions moveType, float waypointDistance, float searchRadius,
             float distanceFromTarget = DefaultDistanceFromTarget, float maxError = DefaultMaxError,
-            Func<bool> exitCondition = null)
+            Func<bool> breakCondition = null)
         {
-            if (exitCondition == null)
-                exitCondition = DefaultExitCondition;
+            if (breakCondition == null)
+                breakCondition = DefaultBreakCondition;
             Func<Vector3?> f = () => FindPointNear(target.position, distanceFromTarget, maxError);
-            return ImplMoveTo(f, moveType, waypointDistance, searchRadius, exitCondition);
+            return ImplMoveTo(f, moveType, waypointDistance, searchRadius, breakCondition);
         }
 
-        [SmartCoroutineEnabled]
         public IEnumerator Follow(Transform target, Actions moveType, float waypointDistance, float searchRadius,
             float distanceFromTarget = DefaultDistanceFromTarget, float maxError = DefaultMaxError,
-            Func<bool> exitCondition = null, Action onReach = null)
+            Func<bool> breakCondition = null, Action onReach = null)
         {
-            if (exitCondition == null)
-                exitCondition = DefaultExitCondition;
+            if (breakCondition == null)
+                breakCondition = DefaultBreakCondition;
             if (onReach == null)
                 onReach = () => {};
             Func<bool> predicate =
                 () => PlanarDistance(transform.position, target.position) > distanceFromTarget + maxError;
-            while (!exitCondition())
+            while (!breakCondition())
             {
                 IEnumerator approacher = Approach(target, moveType, waypointDistance, searchRadius, distanceFromTarget,
                     maxError);
@@ -174,7 +175,6 @@ namespace ProjectZombie
                 yield return new WaitForSeconds(SecondsBeforeResumeFollow);
                 yield return new WaitUntil(predicate);
             }
-            yield return SmartCoroutine.Exit;
         }
     }
 }
