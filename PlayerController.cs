@@ -20,6 +20,6 @@ namespace ProjectZombie
         public override void FastMove(Vector3 direction) => ImplMove(direction, fastSpeed);
         public override IEnumerator Jump() => ImplJump(jumpSpeed);
         public override void Turn(float angularVelocity) => ImplTurn(turnSpeed * angularVelocity);
-        public override IEnumerator Attack(IWeapon weapon) => SmartCoroutine.Create(ImplAttack(weapon));
+        public override IEnumerator Attack(IWeapon weapon) => ImplAttack(weapon);
     }
 }

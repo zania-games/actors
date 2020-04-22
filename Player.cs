@@ -36,7 +36,7 @@ namespace ProjectZombie
             }
             if ((controller.CurrentActions & Actions.Attack) == 0 && equippedWeapon.CanAttack &&
                 Input.GetButtonDown("Fire1"))
-                StartCoroutine(controller.Attack(equippedWeapon));
+                StartCoroutine(SmartCoroutine.Create(controller.Attack(equippedWeapon)));
             controller.Turn(Input.GetAxis("Mouse X"));
         }
     }
