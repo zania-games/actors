@@ -55,8 +55,11 @@ namespace ProjectZombie
         protected IEnumerator ImplAttack(IWeapon weapon)
         {
             OnActionBegin(Actions.Attack);
-            yield return weapon.Attack();
+            SmartCoroutine weaponAttack = SmartCoroutine.Create(weapon.Attack());
+            yield return weaponAttack;
             OnActionEnd(Actions.Attack);
+            if (weaponAttack.Status == SmartCoroutine.Result.WasExited)
+                yield return SmartCoroutine.Exit;
         }
 
         public abstract Actions SupportedActions {get;}
