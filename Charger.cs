@@ -73,12 +73,7 @@ namespace ProjectZombie
             do
             {
                 if (weapon.CanAttack)
-                {
-                    SmartCoroutine attack = SmartCoroutine.Create(controller.Attack(weapon));
-                    yield return attack;
-                    if (attack.Status == SmartCoroutine.Result.WasExited)
-                        attackFailed = true;
-                }
+                    yield return SmartCoroutine.Create(controller.Attack(weapon), () => attackFailed = true);
                 else
                     yield return null;
             }
