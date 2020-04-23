@@ -39,5 +39,10 @@ namespace ProjectZombie
                 StartCoroutine(SmartCoroutine.Create(controller.Attack(equippedWeapon)));
             controller.Turn(Input.GetAxis("Mouse X"));
         }
+
+        public override void OnDeath()
+        {
+            // TODO
+        }
     }
 }

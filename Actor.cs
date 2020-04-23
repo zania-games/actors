@@ -12,6 +12,8 @@ namespace ProjectZombie
 
         public int HitPoints => hitPoints;
 
+        public abstract void OnDeath();
+
         public virtual void OnAttacked(IWeapon weapon)
         {
             hitPoints -= (weapon.Damage - ResistanceTo(weapon));

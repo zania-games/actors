@@ -18,6 +18,7 @@ namespace ProjectZombie
         [SerializeField] float maxSecondsPerCharge;
         [SerializeField] float waypointDistance;
         [SerializeField] float searchRadius;
+        [SerializeField] float secondsToDie;
         #pragma warning restore 0649
 
         ChargerController controller;
@@ -93,15 +94,24 @@ namespace ProjectZombie
 
         void Update()
         {
-            if (!controller.SetupComplete || (controller.CurrentActions & Actions.Attack) != 0)
-                return;
-            if (!idle && target == null)
-                StartCoroutine(IdleRoutine());
-            else if (target != null && !charging)
+            if (hitPoints <= 0)
+                OnDeath();
+            else if (controller.SetupComplete && (controller.CurrentActions & Actions.Attack) == 0)
             {
-                charging = true;
-                StartCoroutine(ChargeRoutine());
+                if (!idle && target == null)
+                    StartCoroutine(IdleRoutine());
+                else if (target != null && !charging)
+                {
+                    charging = true;
+                    StartCoroutine(ChargeRoutine());
+                }
             }
+        }
+
+        public override void OnDeath()
+        {
+            StopAllCoroutines();
+            Object.Destroy(gameObject, secondsToDie);
         }
     }
 }
