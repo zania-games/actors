@@ -12,10 +12,12 @@ namespace ProjectZombie
         protected const float DefaultGravityMultiplier = 2;
 
         protected CharacterController charController;
+        protected Actor actor;
 
         protected virtual void Awake()
         {
             charController = GetComponent<CharacterController>();
+            actor = GetComponent<Actor>();
         }
 
         protected virtual IEnumerator Start()
@@ -34,7 +36,7 @@ namespace ProjectZombie
 
         protected IEnumerator ImplJump(float speed)
         {
-            OnActionBegin(Actions.Jump);
+            actor.OnActionBegin(Actions.Jump);
             Vector3 velocity = charController.velocity + speed * Vector3.up;
             do
             {
@@ -43,7 +45,7 @@ namespace ProjectZombie
                 yield return null;
             }
             while (!charController.isGrounded);
-            OnActionEnd(Actions.Jump);
+            actor.OnActionEnd(Actions.Jump);
         }
 
         protected void ImplTurn(float angularVelocity)
@@ -54,31 +56,16 @@ namespace ProjectZombie
         [SmartCoroutineEnabled]
         protected IEnumerator ImplAttack(IWeapon weapon)
         {
-            OnActionBegin(Actions.Attack);
+            actor.OnActionBegin(Actions.Attack);
             SmartCoroutine weaponAttack = SmartCoroutine.Create(weapon.Attack());
             yield return weaponAttack;
-            OnActionEnd(Actions.Attack);
+            actor.OnActionEnd(Actions.Attack);
             if (weaponAttack.Status == SmartCoroutine.Result.WasExited)
                 yield return SmartCoroutine.Exit;
         }
 
         public abstract Actions SupportedActions {get;}
-        public Actions CurrentActions {get; protected set;} = Actions.None;
         public bool SetupComplete {get; protected set;} = false;
-
-        public virtual void OnActionBegin(Actions action)
-        {
-            if ((action & SupportedActions) == 0)
-                throw new ArgumentException($"Action `{action}` is not supported.", "action");
-            CurrentActions |= action;
-        }
-
-        public virtual void OnActionEnd(Actions action)
-        {
-            if ((action & SupportedActions) == 0)
-                throw new ArgumentException($"Action `{action}` is not supported.", "action");
-            CurrentActions &= ~action;
-        }
 
         public virtual void SlowMove(Vector3 direction) => throw new NotSupportedException();
         public virtual void NormalMove(Vector3 direction) => throw new NotSupportedException();

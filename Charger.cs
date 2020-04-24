@@ -28,13 +28,6 @@ namespace ProjectZombie
         bool idle = false;
         bool charging = false;
 
-        void Awake()
-        {
-            controller = GetComponent<ChargerController>();
-            stopwatch = GameObject.FindWithTag("Globals").GetComponent<Stopwatch>();
-            weapon = GetComponent<MeleeWeapon>();
-        }
-
         bool SelectVisibleTarget()
         {
             Transform[] visiblePlayers =
@@ -96,7 +89,7 @@ namespace ProjectZombie
         {
             if (hitPoints <= 0)
                 OnDeath();
-            else if (controller.SetupComplete && (controller.CurrentActions & Actions.Attack) == 0)
+            else if (controller.SetupComplete && (CurrentActions & Actions.Attack) == 0)
             {
                 if (!idle && target == null)
                     StartCoroutine(IdleRoutine());
@@ -106,6 +99,14 @@ namespace ProjectZombie
                     StartCoroutine(ChargeRoutine());
                 }
             }
+        }
+
+        protected override void Awake()
+        {
+            base.Awake();
+            controller = (ChargerController)Controller;
+            stopwatch = GameObject.FindWithTag("Globals").GetComponent<Stopwatch>();
+            weapon = GetComponent<MeleeWeapon>();
         }
 
         public override void OnDeath()

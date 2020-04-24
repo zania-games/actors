@@ -45,7 +45,7 @@ namespace ProjectZombie
             if (distanceBefore < Mathf.Epsilon)
                 yield break;
             yield return TurnDegrees(PlanarAngle(transform.forward, destination - transform.position));
-            OnActionBegin(moveType);
+            actor.OnActionBegin(moveType);
             while (true)
             {
                 mover(Vector3.forward);
@@ -58,7 +58,7 @@ namespace ProjectZombie
                 distanceBefore = distanceAfter;
             }
             mover(Vector3.back);
-            OnActionEnd(moveType);
+            actor.OnActionEnd(moveType);
         }
 
         [SmartCoroutineEnabled]
@@ -102,7 +102,7 @@ namespace ProjectZombie
 
         public IEnumerator TurnDegrees(float theta)
         {
-            OnActionBegin(Actions.Turn);
+            actor.OnActionBegin(Actions.Turn);
             float sign = Mathf.Sign(theta);
             float turns = Mathf.Abs(theta) / TurnSpeed;
             int completeTurns = (int)turns;
@@ -112,7 +112,7 @@ namespace ProjectZombie
                 yield return null;
             }
             Turn(sign * (turns - completeTurns));
-            OnActionEnd(Actions.Turn);
+            actor.OnActionEnd(Actions.Turn);
         }
 
         public IEnumerator TurnInPlace(IEnumerable<float> steps, float delayBetween, Func<bool> breakCondition)
